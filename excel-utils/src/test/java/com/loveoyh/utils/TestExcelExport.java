@@ -15,10 +15,10 @@ public class TestExcelExport {
 
 	@Test
 	public void testExport() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InterruptedException, IOException {
-		Map<String,String> map = new LinkedHashMap<String, String>();
+		Map<String,Object> map = new LinkedHashMap<String, Object>();
 		map.put("第一列","id");
 		map.put("第二列","name");
-		map.put("第三列","price");
+		map.put("第三列",12.3928392);
 		map.put("第四列","time");
 		
 		List<BeanDemo> data = new ArrayList<BeanDemo>();

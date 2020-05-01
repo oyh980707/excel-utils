@@ -1,11 +1,13 @@
 package com.loveoyh.utils;
 
+import com.sun.deploy.net.HttpResponse;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 
+import javax.xml.bind.annotation.XmlType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.DateFormat;
@@ -17,23 +19,31 @@ import java.util.Map;
 /**
  * Excel构建工具类
  * 注：
+ * 可以在map的value直接传入Number类型
+ * 暴露时间格式属性，供修改
+ *
  * bean的属性类型支持Double,Integer,Date,String
  * 暂无异常处理
  *
  * @Created by oyh.Jerry to 2020/04/22 17:53
  */
 public class ExcelExportUtil {
+	public static final String DEFAULT_DATE_PATTERN = "yyyy-MM-dd HH:mm:ss";
+	//格式化时间的格式
+	public static String pattern = DEFAULT_DATE_PATTERN;
+	
+	
 	/**
 	 * 创建工作簿
 	 *
-	 * @param mapping 列名和属性名的对应关系，使用的是有序集合LinkedHashMap，put顺序对应列顺序
-	 * @param data    数据
+	 * @param mapping 列名和需要填充数据对象(属性或者数字)的对应关系，使用的是有序集合LinkedHashMap，put顺序对应列顺序
+	 * @param data 数据
 	 * @return Workbook对象
 	 * @throws NoSuchMethodException
 	 * @throws InvocationTargetException
 	 * @throws IllegalAccessException
 	 */
-	public static Workbook buildSheet(Map<String, String> mapping, List<?> data){
+	public static Workbook buildSheet(Map<String, Object> mapping, List<?> data){
 		Workbook wb = new HSSFWorkbook();
 		Sheet sheet = wb.createSheet("sheet1");
 		//构造头行
@@ -50,29 +60,38 @@ public class ExcelExportUtil {
 			Row dataRow = sheet.createRow(i + 1);
 			
 			int indexCell = 0;
-			for (Map.Entry<String, String> entry : mapping.entrySet()) {
+			for (Map.Entry<String, Object> entry : mapping.entrySet()) {
+				//根据Map的value值判断
+				Object obj = entry.getValue();
+				if(obj instanceof Number){
+					Number number = (Number) obj;
+					fillDataCell(dataRow, indexCell++, number);
+					continue;
+				}
+				
 				//首字母大写并添加get前缀
-				String prototype = "get" + firstUpperCase(entry.getValue());
+				String prototype = "get" + firstUpperCase((String) entry.getValue());
 				//获取方法
 				Object t = data.get(i);
 				Method method = null;
 				try {
 					method = t.getClass().getMethod(prototype);
+					Object value = method.invoke(t);
+					//填充值到一行单元格
+					fillDataCell(dataRow, indexCell++, value);
+					continue;
 				} catch (NoSuchMethodException e) {
 					System.err.println("调用"+prototype+"方法异常！");
 					e.printStackTrace();
-				}
-				Object value = null;
-				try {
-					value = method.invoke(t);
 				} catch (IllegalAccessException e) {
 					System.err.println("无权访问该方法"+method);
 					e.printStackTrace();
-				} catch (InvocationTargetException e) {
+				} catch (Exception e) {
 					e.printStackTrace();
 				}
-				//填充值到一行单元格
-				fillDataCell(dataRow, indexCell++, value);
+				
+				//填充空
+				fillDataCell(dataRow, indexCell++, null);
 			}
 		}
 		return wb;
@@ -96,7 +115,7 @@ public class ExcelExportUtil {
 				cell.setCellValue((Integer) value);
 			} else if (value instanceof Date) {
 				Date date = (Date) value;
-				DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+				DateFormat df = new SimpleDateFormat(pattern);
 				cell.setCellValue(df.format(date));
 			} else {
 				cell.setCellValue(String.valueOf(value));
